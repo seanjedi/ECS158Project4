@@ -37,6 +37,11 @@ __global__ void matrix_multiply_kernel(unsigned char *temp, unsigned char *matri
 					sum += temp[(windowSizeX * tempY) + tempX] * kernal[(order * x2) + y2];
 				}
 			}
+			if(sum < 0){
+				sum = 0;
+			}else if(sum > 255){
+				sum = 255;
+			
 			matrix[(windowSizeX * y) + x] = (unsigned char) sum;
         }
     }
