@@ -57,8 +57,6 @@ void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowS
 	int middle = ceil(order/2);
     unsigned char *temp, *matrix_d;
     float *kernal_d;
-    //Number of blocks we need
-    int blocks = ceil(((float)windowSizeX*(float)windowSizeY)/1024);
     int kernal_size = order*order*sizeof(float);
     int matrix_size = windowSizeX * windowSizeY * sizeof(char);
     //Initialize Kernal Data
@@ -97,7 +95,7 @@ int main(int argc, char **argv)
 
 	//Read in inputs, check if they are correct!
 	if(argc != 4){
-		fprintf(stderr, "Usage: ./gaussian_blur_serial <input_file> <output_file> <sigma>\n");
+		fprintf(stderr, "Usage: ./gaussian_blur_cuda <input_file> <output_file> <sigma>\n");
 		exit(1);
 	}
 	FILE *fp;
@@ -136,8 +134,8 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	// unsigned char* matrix = malloc(sizeof(unsigned char) * windowSizeX * windowSizeY);
-	unsigned char matrix[windowSizeX * windowSizeY];
+	unsigned char* matrix = (unsigned char*)malloc(sizeof(unsigned char) * windowSizeX * windowSizeY);
+	// unsigned char matrix[windowSizeX * windowSizeY];
 
 	if(fread(matrix, sizeof(unsigned char), windowSizeX*windowSizeY,fp) != (unsigned)(windowSizeX*windowSizeY)){
 		fprintf(stderr, "Error: invalid PGM pixels\n");
