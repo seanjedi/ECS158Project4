@@ -4,6 +4,7 @@
 #include<string.h>
 #include<math.h>
 
+//Cuda checks
 #define cuda_check(ret) _cuda_check((ret), __FILE__, __LINE__)
 inline void _cuda_check(cudaError_t ret, const char *file, int line){
     if(ret != cudaSuccess) {
@@ -16,36 +17,38 @@ inline void _cuda_check(cudaError_t ret, const char *file, int line){
 
 // Kernal Multiply Function
 __global__ void matrix_multiply_kernel(unsigned char *temp, unsigned char *matrix, float *kernal, int order, int middle, int windowSizeX, int windowSizeY){
+	//Find place in the execution
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	float sum = 0.0;
-
+	//If out of bounds, do nothing
 	if(y >= windowSizeY || x >= windowSizeX){
 		return;
 	}
-
+	//Else do function
     for(int y2 = 0; y2 < order; y2++){
 		for(int x2 = 0; x2 < order; x2++){
 			int tempX = x - middle + x2, tempY = y - middle + y2;
 			if(tempX < 0){
 				tempX = 0;
 			}else if(tempX >= windowSizeX){
-				tempX = windowSizeX;
+				tempX = windowSizeX - 1;
 			}
 			if(tempY < 0){
 				tempY = 0;
 			}else if(tempY >= windowSizeY){
-				tempY = windowSizeY;
+				tempY = windowSizeY - 1;
 			}
 			sum += temp[(windowSizeX * tempY) + tempX] * kernal[(order * x2) + y2];
 		}
 	}
-
-	if(sum < 0)
+	//Clamp the sum value
+	if(sum < 0){
 		sum = 0;
-	else if(sum > 255)
+	}else if(sum > 255){
 		sum = 255;
-		
+	}
+	//Add sum value to matrix
 	matrix[(windowSizeX * y) + x] = (unsigned char) sum;
         
 }
@@ -54,7 +57,9 @@ __global__ void matrix_multiply_kernel(unsigned char *temp, unsigned char *matri
 //Multiply Kernal//
 ///////////////////
 void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowSizeX, int windowSizeY){
+	//Find the middle of the kernal
 	int middle = ceil(order/2);
+	//Declare all the Kernal data
     unsigned char *temp, *matrix_d;
     float *kernal_d;
     int kernal_size = order*order*sizeof(float);
@@ -99,16 +104,17 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	FILE *fp;
+	//If file cannout open
 	if((fp = fopen(argv[1], "rb")) == NULL){
 		fprintf(stderr, "Error: cannot open file %s\n", argv[1]);
 		exit(1);
 	}
-
+	// if File is incorrect
 	if(fgets(firstLine, 4, fp) == NULL){
 		fprintf(stderr, "Error: cannot open file %s\n", argv[1]);
 		exit(1);
 	}
-
+	//if info is incorrect
 	if(strcmp(firstLine, "P5\n")){
 		fprintf(stderr, "Error: invalid PGM information\n");
 		exit(1);
@@ -134,9 +140,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	unsigned char* matrix = (unsigned char*)malloc(sizeof(unsigned char) * windowSizeX * windowSizeY);
-	// unsigned char matrix[windowSizeX * windowSizeY];
-
+	//Create matrix
+	unsigned char* matrix = (unsigned char*)calloc(windowSizeX * windowSizeY,sizeof(unsigned char) * windowSizeX * windowSizeY);
+	//Read in Matrix
 	if(fread(matrix, sizeof(unsigned char), windowSizeX*windowSizeY,fp) != (unsigned)(windowSizeX*windowSizeY)){
 		fprintf(stderr, "Error: invalid PGM pixels\n");
 		exit(1);
@@ -147,6 +153,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Error: invalid sigma value\n");
 		exit(1);
 	}
+	//Create the order, if order is even, add 1
 	order = ceil(sigma * 6);
 	if(order%2 == 0){
 		order++;
@@ -157,7 +164,7 @@ int main(int argc, char **argv)
 	}
 	
 	int middle = ceil(order/2);
-	// float* kernal = malloc(sizeof(float) * order * order);
+	//Intialize Kernal
 	float kernal [order*order];
 	for(int y = 0; y < order; y++){
 		for(int x = 0; x < order; x++){
@@ -166,12 +173,12 @@ int main(int argc, char **argv)
 		}
 	}
 
+	//Function Time
     struct timespec before, after;
     clock_gettime(CLOCK_MONOTONIC, &before);
-    //Get TIme!
 	multiplyKernal(matrix, kernal, order, windowSizeX, windowSizeY);
-    
 	clock_gettime(CLOCK_MONOTONIC, &after);
+	//Function End
     unsigned long elapsed_ns = (after.tv_sec - before.tv_sec)*(1E9) + after.tv_nsec - before.tv_nsec;
     double seconds = elapsed_ns / (1E9);
 
@@ -181,6 +188,7 @@ int main(int argc, char **argv)
 	char name[255];
 	sprintf(name, "%s", argv[2]);
     
+	//Print back to output file
     FILE *fd;
     fd = fopen(name, "w+");
     fprintf(fd, "P5\n");
@@ -195,8 +203,7 @@ int main(int argc, char **argv)
 
 	fclose(fp);
 	fclose(fd);
-	// free(kernal);
-	// free(matrix);
+	free(matrix);
 
 	return 0;
 }

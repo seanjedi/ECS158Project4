@@ -8,6 +8,7 @@
 //Multiply Kernal//
 ///////////////////
 void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowSizeX, int windowSizeY){
+	//Make a temp matrix
 	unsigned char* temp = malloc(sizeof(char) * windowSizeX * windowSizeY);
 	memcpy(temp, matrix, (windowSizeX*windowSizeY));
 	int middle = ceil(order/2);
@@ -18,24 +19,29 @@ void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowS
 			for(int y2 = 0; y2 < order; y2++){
 				for(int x2 = 0; x2 < order; x2++){
 					int tempX = x - middle + x2, tempY = y - middle + y2;
+					//Check if tempX or temp Y is within bounds
 					if(tempX < 0){
 						tempX = 0;
 					}else if(tempX >= windowSizeX){
-						tempX = windowSizeX;
+						tempX = windowSizeX - 1;
+						
 					}
 					if(tempY < 0){
 						tempY = 0;
 					}else if(tempY >= windowSizeY){
-						tempY = windowSizeY;
+						tempY = windowSizeY - 1;
 					}
+					//Accumulate sum value
 					sum += temp[(windowSizeX * tempY) + tempX] * kernal[(order * x2) + y2];
 				}
 			}
+			// Clamp the sum value with range
 			if(sum < 0){
 				sum = 0;
 			}else if(sum > 255){
 				sum = 255;
 			}
+			// add sum value to the matrix
 			matrix[(windowSizeX * y) + x] = (unsigned char) sum;
 		}
 	}
@@ -93,7 +99,8 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	unsigned char* matrix = malloc(sizeof(unsigned char) * windowSizeX * windowSizeY);
+	// calloc the matrix to make sure it is empty at first
+	unsigned char* matrix = calloc(windowSizeX * windowSizeY, sizeof(unsigned char) * windowSizeX * windowSizeY);
 
 	if(fread(matrix, sizeof(unsigned char), windowSizeX*windowSizeY,fp) != windowSizeX*windowSizeY){
 		fprintf(stderr, "Error: invalid PGM pixels\n");
@@ -114,6 +121,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
+	//Intialize the kernal
 	int middle = ceil(order/2);
 	float* kernal = malloc(sizeof(float) * order * order);
 	for(int y = 0; y < order; y++){
@@ -123,21 +131,21 @@ int main(int argc, char **argv)
 		}
 	}
 
+	//Get the function times!
     struct timespec before, after;
     clock_gettime(CLOCK_MONOTONIC, &before);
-
 	multiplyKernal(matrix, kernal, order, windowSizeX, windowSizeY);
-    
 	clock_gettime(CLOCK_MONOTONIC, &after);
     unsigned long elapsed_ns = (after.tv_sec - before.tv_sec)*(1E9) + after.tv_nsec - before.tv_nsec;
     double seconds = elapsed_ns / (1E9);
-
+	//Print the function time
 	printf("Running time: %f secs\n", seconds);
 
 
 	char name[255];
 	sprintf(name, "%s", argv[2]);
     
+	//Output to the file specified
     FILE *fd;
     fd = fopen(name, "w+");
     fprintf(fd, "P5\n");
@@ -150,6 +158,7 @@ int main(int argc, char **argv)
         }
     }
 
+	//Close files and free memory
 	fclose(fp);
 	fclose(fd);
 	free(kernal);
