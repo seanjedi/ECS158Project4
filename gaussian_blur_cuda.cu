@@ -139,9 +139,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Error: invalid PGM information\n");
 		exit(1);
 	}
+	getc(fp);
 
 	//Create matrix
-	unsigned char* matrix = (unsigned char*)calloc(windowSizeX * windowSizeY,sizeof(unsigned char) * windowSizeX * windowSizeY);
+	unsigned char* matrix = (unsigned char*)malloc(sizeof(unsigned char) * windowSizeX * windowSizeY);
 	//Read in Matrix
 	if(fread(matrix, sizeof(unsigned char), windowSizeX*windowSizeY,fp) != (unsigned)(windowSizeX*windowSizeY)){
 		fprintf(stderr, "Error: invalid PGM pixels\n");
@@ -164,12 +165,20 @@ int main(int argc, char **argv)
 	}
 	
 	int middle = ceil(order/2);
-	//Intialize Kernal
+	//Intialize the kernal
+	float sum = 0;
 	float kernal [order*order];
 	for(int y = 0; y < order; y++){
 		for(int x = 0; x < order; x++){
 			int x2 = x - middle, y2 = y - middle;
 			kernal[(order * y) + x] = (1/(2*M_PI*(pow(sigma,2)))) * (pow(M_E, -((pow(x2,2) + pow(y2,2))/(2*pow(sigma,2)))));
+			sum += kernal[(order * y) + x];
+		}
+	}
+
+	for(int y = 0; y < order; y++){
+		for(int x = 0; x < order; x++){
+			kernal[(order * y) + x] = kernal[(order * y) + x] / sum;
 		}
 	}
 

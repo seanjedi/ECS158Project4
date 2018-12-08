@@ -3,6 +3,7 @@
 #include<time.h>
 #include<string.h>
 #include<math.h>
+#include<ctype.h>
 
 ///////////////////
 //Multiply Kernal//
@@ -11,14 +12,14 @@ void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowS
 	//Make a temp matrix
 	unsigned char* temp = malloc(sizeof(char) * windowSizeX * windowSizeY);
 	memcpy(temp, matrix, (windowSizeX*windowSizeY));
-	int middle = ceil(order/2);
+	int middle = order/2;
 
 	for(int y = 0; y < windowSizeY; y++){
 		for(int x = 0; x < windowSizeX; x++){
 			float sum = 0;
 			for(int y2 = 0; y2 < order; y2++){
 				for(int x2 = 0; x2 < order; x2++){
-					int tempX = x - middle + x2, tempY = y - middle + y2;
+					int tempX = x + x2 - middle, tempY = y + y2 - middle;
 					//Check if tempX or temp Y is within bounds
 					if(tempX < 0){
 						tempX = 0;
@@ -32,7 +33,7 @@ void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowS
 						tempY = windowSizeY - 1;
 					}
 					//Accumulate sum value
-					sum += temp[(windowSizeX * tempY) + tempX] * kernal[(order * x2) + y2];
+					sum += temp[(windowSizeX * tempY) + tempX] * kernal[(order * y2) + x2];
 				}
 			}
 			// Clamp the sum value with range
@@ -41,7 +42,7 @@ void multiplyKernal(unsigned char* matrix, float* kernal, int order, int windowS
 			}else if(sum > 255){
 				sum = 255;
 			}
-			// add sum value to the matrix
+
 			matrix[(windowSizeX * y) + x] = (unsigned char) sum;
 		}
 	}
@@ -98,9 +99,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Error: invalid PGM information\n");
 		exit(1);
 	}
-
-	// calloc the matrix to make sure it is empty at first
-	unsigned char* matrix = calloc(windowSizeX * windowSizeY, sizeof(unsigned char) * windowSizeX * windowSizeY);
+	getc(fp);
+	unsigned char* matrix = malloc(sizeof(unsigned char) * windowSizeX * windowSizeY);
 
 	if(fread(matrix, sizeof(unsigned char), windowSizeX*windowSizeY,fp) != windowSizeX*windowSizeY){
 		fprintf(stderr, "Error: invalid PGM pixels\n");
@@ -123,13 +123,22 @@ int main(int argc, char **argv)
 	
 	//Intialize the kernal
 	int middle = ceil(order/2);
+	float sum = 0;
 	float* kernal = malloc(sizeof(float) * order * order);
 	for(int y = 0; y < order; y++){
 		for(int x = 0; x < order; x++){
 			int x2 = x - middle, y2 = y - middle;
-			kernal[(order * y) + x] = (1/(2*M_PI*(pow(sigma,2)))) * (pow(M_E, -((pow(x2,2) + pow(y2,2))/(2*pow(sigma,2)))));
+			kernal[(order * y) + x] = (1/(2*M_PI*((sigma * sigma)))) * (pow(M_E, -(((x2 * x2) + (y2 * y2))/(2*(sigma * sigma)))));
+			sum += kernal[(order * y) + x];
 		}
 	}
+
+	for(int y = 0; y < order; y++){
+		for(int x = 0; x < order; x++){
+			kernal[(order * y) + x] /= sum;
+		}
+	}
+
 
 	//Get the function times!
     struct timespec before, after;
@@ -151,12 +160,7 @@ int main(int argc, char **argv)
     fprintf(fd, "P5\n");
     fprintf(fd, "%d %d\n", windowSizeX, windowSizeY);
     fprintf(fd, "255\n");
-
-    for(int y = 0; y < windowSizeY; y++) {
-        for(int x = 0; x < windowSizeX; x++) {
-            fprintf(fd, "%c", matrix[(windowSizeX * y) + x]);
-        }
-    }
+	fwrite(matrix, sizeof(unsigned char), windowSizeX * windowSizeY, fd);
 
 	//Close files and free memory
 	fclose(fp);
